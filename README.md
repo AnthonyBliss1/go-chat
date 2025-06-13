@@ -1,6 +1,6 @@
 # Go Chat
 
-A chat room style project utilizing a TCP server (`server.go`) to broadcast messages to connected clients. Use `go-chat.go` to connect to establish a connection to the server and send messages. 
+A chat room style project utilizing a TCP server (`server.go`) to broadcast messages to connected clients. Use `go-chat.go` to establish a connection to the server and send messages. 
 
 The client side code, `go-chat.go`, is setup to connect to a localhost address @ 127.0.0.1 (although this can be changed). Also, `server.go` is currently set up to listen on `Port 8000`.
 
