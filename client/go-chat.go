@@ -51,6 +51,12 @@ func main() {
 		fmt.Println(err)
 	}
 
+	//Send display name immediately
+	_, err = conn.Write([]byte(display_name + "\n"))
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	fmt.Print("Connected to Server!\n\n")
 
 	go func() {

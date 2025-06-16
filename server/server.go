@@ -1,21 +1,44 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"strings"
 	"sync"
 )
 
-var conMap = &sync.Map{}
+var (
+	conns = &sync.Map{}
+	names = &sync.Map{}
+)
 
 func handleConnections(conn net.Conn) {
+	// Read and store connected user display name
+	id := fmt.Sprintf("%p", conn)
+	rd := bufio.NewReader(conn)
+
+	name_line, err := rd.ReadString('\n')
+	if err != nil {
+		fmt.Printf("error reading display name: %q\n", err)
+		return
+	}
+
+	display_name := strings.TrimSpace(name_line)
+
 	defer func() {
 		conn.Close()
-		conMap.Delete(conn.RemoteAddr().String())
-		broadcastMsg(nil, conMap, fmt.Sprintf("<%s left the chat>\n", conn.RemoteAddr().String()))
-		fmt.Printf("\n%s left the chat\n", conn.RemoteAddr().String())
+		conns.Delete(conn.RemoteAddr().String())
+		names.Delete(id)
+		broadcastMsg(nil, conns, fmt.Sprintf("<%s left the chat>\n", display_name))
+		fmt.Printf("\n%s | %s left the chat\n", display_name, conn.RemoteAddr().String())
 	}()
+
+	names.Store(id, display_name)
+	conns.Store(conn.RemoteAddr().String(), conn)
+	fmt.Printf("\nNew Connection: %s | %s\n\n", display_name, conn.RemoteAddr().String())
+	broadcastMsg(conn, conns, fmt.Sprintf("<%s joined the chat>\n", display_name))
+
 	buffer := make([]byte, 1024)
 
 	for {
@@ -26,7 +49,7 @@ func handleConnections(conn net.Conn) {
 		}
 
 		fmt.Printf("%s | %s\n", strings.Trim(string(buffer[:n]), "\n"), conn.RemoteAddr().String())
-		broadcastMsg(conn, conMap, string(buffer[:n]))
+		broadcastMsg(conn, conns, string(buffer[:n]))
 	}
 }
 
@@ -60,9 +83,7 @@ func main() {
 			fmt.Println(err)
 			break
 		}
-		conMap.Store(conn.RemoteAddr().String(), conn)
-		fmt.Printf("\nNew Connection: %s\n\n", conn.RemoteAddr().String())
-		broadcastMsg(conn, conMap, fmt.Sprintf("<%s joined the chat>\n", conn.RemoteAddr().String()))
+
 		go handleConnections(conn)
 	}
 
