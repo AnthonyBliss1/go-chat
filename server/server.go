@@ -30,14 +30,14 @@ func handleConnections(conn net.Conn) {
 		conn.Close()
 		conns.Delete(conn.RemoteAddr().String())
 		names.Delete(id)
-		broadcastMsg(nil, conns, fmt.Sprintf("<%s left the chat>\n", display_name))
-		fmt.Printf("\n%s | %s left the chat\n", display_name, conn.RemoteAddr().String())
+		broadcastMsg(nil, conns, fmt.Sprintf("<%s left the room>\n", display_name))
+		fmt.Printf("\n%s | %s left the room\n", display_name, conn.RemoteAddr().String())
 	}()
 
 	names.Store(id, display_name)
 	conns.Store(conn.RemoteAddr().String(), conn)
 	fmt.Printf("\nNew Connection: %s | %s\n\n", display_name, conn.RemoteAddr().String())
-	broadcastMsg(conn, conns, fmt.Sprintf("<%s joined the chat>\n", display_name))
+	broadcastMsg(conn, conns, fmt.Sprintf("<%s joined the room>\n", display_name))
 
 	buffer := make([]byte, 1024)
 

@@ -1,5 +1,8 @@
 package main
 
+// A simple program demonstrating the text area component from the Bubbles
+// component library.
+
 import (
 	"bufio"
 	"embed"
@@ -14,10 +17,120 @@ import (
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
+
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-//go:embed assets/noti.mp3
+const gap = "\n\n"
+
+var display_name, server_address string
+var conn net.Conn
+
+//go:embed assets/*.mp3
 var soundAssets embed.FS
+
+func main() {
+	rd := bufio.NewReader(os.Stdin)
+
+	fmt.Print("\nEnter Display Name: ")
+	raw, _ := rd.ReadString('\n')
+	display_name = strings.TrimSpace(raw)
+
+	fmt.Print("\nEnter Server Address: ")
+	raw_addy, _ := rd.ReadString('\n')
+	server_address = strings.TrimSpace(raw_addy) + ":8000"
+
+	c, err := net.Dial("tcp", server_address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn = c
+
+	play_sound("assets/zelda_secret.mp3")
+
+	p := tea.NewProgram(initialModel())
+
+	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+type (
+	errMsg      error
+	incomingMsg string
+)
+
+type model struct {
+	viewport    viewport.Model
+	messages    []string
+	textarea    textarea.Model
+	senderStyle lipgloss.Style
+	err         error
+}
+
+func initialModel() model {
+	ta := textarea.New()
+	ta.Placeholder = "Send a message..."
+	ta.Focus()
+
+	ta.Prompt = "┃ "
+	ta.CharLimit = 280
+
+	ta.SetWidth(30)
+	ta.SetHeight(3)
+
+	// Remove cursor line styling
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+
+	ta.ShowLineNumbers = false
+
+	vp := viewport.New(30, 5)
+	vp.SetContent(`
+ ______     ______        ______     __  __     ______     ______  
+/\  ___\   /\  __ \      /\  ___\   /\ \_\ \   /\  __ \   /\__  _\ 
+\ \ \__ \  \ \ \/\ \     \ \ \____  \ \  __ \  \ \  __ \  \/_/\ \/ 
+ \ \_____\  \ \_____\     \ \_____\  \ \_\ \_\  \ \_\ \_\    \ \_\ 
+  \/_____/   \/_____/      \/_____/   \/_/\/_/   \/_/\/_/     \/_/ 
+                                                                   
+`)
+
+	_, err := conn.Write([]byte(display_name + "\n"))
+	if err != nil {
+		fmt.Printf("error sending message: %q", err)
+	}
+
+	fmt.Printf("\nJoined room as %s\n", display_name)
+
+	ta.KeyMap.InsertNewline.SetEnabled(false)
+
+	return model{
+		textarea:    ta,
+		messages:    []string{},
+		viewport:    vp,
+		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		err:         nil,
+	}
+}
+
+func readIncoming(conn net.Conn) tea.Cmd {
+	return func() tea.Msg {
+		rd := bufio.NewReader(conn)
+		line, err := rd.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				return incomingMsg("<server disconnected>")
+			}
+			return errMsg(err)
+		}
+
+		play_sound("assets/noti.mp3")
+
+		return incomingMsg(strings.TrimRight(line, "\r\n"))
+	}
+}
 
 func play_sound(sound string) {
 	f, err := soundAssets.Open(sound)
@@ -40,71 +153,66 @@ func play_sound(sound string) {
 
 }
 
-func main() {
-	var display_name string
+func (m model) Init() tea.Cmd {
+	return tea.Batch(textarea.Blink, readIncoming(conn))
+}
 
-	fmt.Printf("\nEnter your display name: ")
-	fmt.Scan(&display_name)
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		tiCmd tea.Cmd
+		vpCmd tea.Cmd
+	)
 
-	conn, err := net.Dial("tcp", "127.0.0.1:8000")
-	if err != nil {
-		fmt.Println(err)
-	}
+	m.textarea, tiCmd = m.textarea.Update(msg)
+	m.viewport, vpCmd = m.viewport.Update(msg)
 
-	//Send display name immediately
-	_, err = conn.Write([]byte(display_name + "\n"))
-	if err != nil {
-		fmt.Println(err)
-	}
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.viewport.Width = msg.Width
+		m.textarea.SetWidth(msg.Width)
+		m.viewport.Height = msg.Height - m.textarea.Height() - lipgloss.Height(gap)
 
-	fmt.Print("Connected to Server!\n\n")
-
-	go func() {
-		rd := bufio.NewReader(conn)
-		for {
-			raw, err := rd.ReadString('\n')
+		if len(m.messages) > 0 {
+			// Wrap content before setting it.
+			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
+		}
+		m.viewport.GotoBottom()
+	case incomingMsg:
+		m.messages = append(m.messages, m.senderStyle.Render(string(msg)))
+		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.viewport.GotoBottom()
+		return m, readIncoming(conn)
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			fmt.Println(m.textarea.Value())
+			return m, tea.Quit
+		case tea.KeyEnter:
+			msg := m.textarea.Value()
+			m.messages = append(m.messages, m.senderStyle.Render(display_name+": ")+msg)
+			_, err := conn.Write([]byte(display_name + ": " + msg + "\n"))
 			if err != nil {
-				if err == io.EOF {
-					fmt.Println("<server disconnected>")
-				} else {
-					fmt.Println("<read error>")
-				}
-				log.Fatal(err)
+				fmt.Printf("error sending message: %q", err)
+				break
 			}
-
-			line := strings.TrimRight(raw, "\r\n")
-
-			parts := strings.SplitN(line, ": ", 2)
-			if len(parts) != 2 {
-				fmt.Printf("\r%s\n%s: ", line, display_name)
-				continue
-			}
-			sender, body := parts[0], parts[1]
-
-			if sender == display_name {
-				continue
-			}
-
-			fmt.Printf("\r%s: %s\n%s: ", sender, body, display_name)
-			play_sound("assets/noti.mp3")
-
-		}
-	}()
-
-	for {
-		stdin := bufio.NewReader(os.Stdin)
-
-		fmt.Printf("%s: ", display_name)
-		msg, err := stdin.ReadString('\n')
-		if err != nil {
-			fmt.Printf("error reading user input: %q", err)
+			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
+			m.textarea.Reset()
+			m.viewport.GotoBottom()
 		}
 
-		msg = strings.TrimRight(msg, "\r\n")
-		_, err = conn.Write([]byte(display_name + ": " + msg + "\n"))
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+	case errMsg:
+		m.err = msg
+		return m, nil
 	}
+
+	return m, tea.Batch(tiCmd, vpCmd)
+}
+
+func (m model) View() string {
+	return fmt.Sprintf(
+		"%s%s%s",
+		m.viewport.View(),
+		gap,
+		m.textarea.View(),
+	)
 }
