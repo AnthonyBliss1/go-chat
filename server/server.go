@@ -71,7 +71,7 @@ func handleConnections(conn net.Conn) {
 					broadcastMsg(nil, conns, command_return)
 				}()
 			default:
-				return
+				continue
 			}
 		}
 	}
