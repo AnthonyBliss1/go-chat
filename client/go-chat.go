@@ -49,7 +49,7 @@ func main() {
 	}
 	conn = c
 
-	play_sound("assets/zelda_secret.mp3")
+	playSound("assets/zelda_secret.mp3")
 
 	p := tea.NewProgram(initialModel())
 
@@ -126,13 +126,13 @@ func readIncoming(conn net.Conn) tea.Cmd {
 			return errMsg(err)
 		}
 
-		play_sound("assets/noti.mp3")
+		playSound("assets/noti.mp3")
 
 		return incomingMsg(strings.TrimRight(line, "\r\n"))
 	}
 }
 
-func play_sound(sound string) {
+func playSound(sound string) {
 	f, err := soundAssets.Open(sound)
 	if err != nil {
 		log.Fatal("sound open:", err)

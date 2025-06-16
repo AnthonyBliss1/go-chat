@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -50,6 +51,29 @@ func handleConnections(conn net.Conn) {
 
 		fmt.Printf("%s | %s\n", strings.Trim(string(buffer[:n]), "\n"), conn.RemoteAddr().String())
 		broadcastMsg(conn, conns, string(buffer[:n]))
+
+		//TODO find out why this fixes the issue where only the sender of the command receives the result 😐
+		time.Sleep(1 * time.Second)
+
+		//Find command in user message, server sends message
+		t, command := findCommand(strings.Trim(string(buffer[:n]), "\n"))
+		if t {
+			switch command {
+			case "room":
+				go func() {
+					var list []string
+					names.Range(func(_, value any) bool {
+						list = append(list, value.(string))
+						return true
+					})
+					users := strings.Join(list, ", ")
+					command_return := fmt.Sprintf("Connected Users: %v\n", "["+users+"]")
+					broadcastMsg(nil, conns, command_return)
+				}()
+			default:
+				return
+			}
+		}
 	}
 }
 
@@ -67,6 +91,21 @@ func broadcastMsg(sender net.Conn, conMap *sync.Map, msg string) {
 		}
 		return true
 	})
+}
+
+func findCommand(msg string) (bool, string) {
+	index := strings.Index(msg, "#")
+	if index == -1 {
+		return false, ""
+	}
+
+	command_string := strings.TrimSpace(msg[index+1:])
+	if command_string == "" {
+		return false, ""
+	}
+
+	return true, command_string
+
 }
 
 func main() {
