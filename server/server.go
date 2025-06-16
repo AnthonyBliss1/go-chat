@@ -57,6 +57,10 @@ func handleConnections(conn net.Conn) {
 
 		//Find command in user message, server sends message
 		t, command := findCommand(strings.Trim(string(buffer[:n]), "\n"))
+
+		//debug
+		fmt.Printf("<findCommand : %t | %s>\n", t, command)
+
 		if t {
 			switch command {
 			case "room":
@@ -93,18 +97,22 @@ func broadcastMsg(sender net.Conn, conMap *sync.Map, msg string) {
 	})
 }
 
+// pretty ugly, need to change this and use regex
 func findCommand(msg string) (bool, string) {
-	index := strings.Index(msg, "#")
-	if index == -1 {
+	cmd_index := strings.Index(msg, "#")
+
+	if cmd_index != -1 {
+		space_index := strings.Index(msg[cmd_index+1:], " ")
+
+		if space_index != -1 {
+			return true, msg[cmd_index+1:][:space_index]
+		}
+
+	} else {
 		return false, ""
 	}
 
-	command_string := strings.TrimSpace(msg[index+1:])
-	if command_string == "" {
-		return false, ""
-	}
-
-	return true, command_string
+	return true, msg[cmd_index+1:]
 
 }
 
