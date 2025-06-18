@@ -5,7 +5,7 @@ A chat room style project utilizing a TCP server (`server.go`) to broadcast mess
 The client side code, `go-chat.go`, will prompt the user for a server address to connect to. Also, `server.go` is currently set up to listen on `Port 8000` so make sure this port is not in use or change the port configuration in `go-chat.go` and `server.go`.
 
 ## Commands
-- Send commands with `#`
+***Send commands with `#`***
 
 | Command | Usage |
 | ------- | ----- |
