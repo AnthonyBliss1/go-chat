@@ -12,7 +12,7 @@ The client side code, `go-chat.go`, will prompt the user for a server address to
 | #room | Show the current users connected to the server |
 | #chat "{prompt}" | Send a message to the AI bot |
 
-- To the use the `#chat` command make sure to have a `.env` file that includes your `OPENAI_API_KEY` next to the server code.
+- To the use the `#chat` command, you need a `.env` file that includes your `OPENAI_API_KEY` next to the server code.
 - Make sure to wrap your prompt in quotes:
     - `#chat "Hello!"`
 
