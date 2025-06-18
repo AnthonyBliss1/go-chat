@@ -2,11 +2,19 @@
 
 A chat room style project utilizing a TCP server (`server.go`) to broadcast messages to connected clients. Use `go-chat.go` to establish a connection to the server and send messages. 
 
-The client side code, `go-chat.go`, will prompt the user for the server address to connect to. Also, `server.go` is currently set up to listen on `Port 8000` so make sure this port is not in use or change the port configuration in `go-chat.go` and `server.go`.
+The client side code, `go-chat.go`, will prompt the user for a server address to connect to. Also, `server.go` is currently set up to listen on `Port 8000` so make sure this port is not in use or change the port configuration in `go-chat.go` and `server.go`.
 
-## Command Usage
+## Commands
 - Send commands with `#`
-- Currently only one command is supported - `#room` which will list all users currently connected to the server
+
+| Command | Usage |
+| ------- | ----- |
+| #room | Show the current users connected to the server |
+| #chat "{prompt}" | Send a message to the AI bot |
+
+- To the use the `#chat` command make sure to have a `.env` file that includes your `OPENAI_API_KEY` next to the server code.
+- Make sure to wrap your prompt in quotes:
+    - `#chat "Hello!"`
 
 ## Usage 
 

@@ -179,7 +179,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoBottom()
 	case incomingMsg:
 		m.messages = append(m.messages, m.senderStyle.Render(string(msg)))
-		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
+		m.textarea.Reset()
 		m.viewport.GotoBottom()
 		return m, readIncoming(conn)
 	case tea.KeyMsg:
