@@ -68,6 +68,8 @@ type model struct {
 	messages    []string
 	textarea    textarea.Model
 	senderStyle lipgloss.Style
+	serverStyle lipgloss.Style
+	aiStyle     lipgloss.Style
 	err         error
 }
 
@@ -89,12 +91,12 @@ func initialModel() model {
 
 	vp := viewport.New(30, 5)
 	vp.SetContent(`
- ______     ______        ______     __  __     ______     ______  
-/\  ___\   /\  __ \      /\  ___\   /\ \_\ \   /\  __ \   /\__  _\ 
-\ \ \__ \  \ \ \/\ \     \ \ \____  \ \  __ \  \ \  __ \  \/_/\ \/ 
- \ \_____\  \ \_____\     \ \_____\  \ \_\ \_\  \ \_\ \_\    \ \_\ 
-  \/_____/   \/_____/      \/_____/   \/_/\/_/   \/_/\/_/     \/_/ 
-                                                                   
+ ______     ______        ______     __  __     ______     ______
+/\  ___\   /\  __ \      /\  ___\   /\ \_\ \   /\  __ \   /\__  _\
+\ \ \__ \  \ \ \/\ \     \ \ \____  \ \  __ \  \ \  __ \  \/_/\ \/
+ \ \_____\  \ \_____\     \ \_____\  \ \_\ \_\  \ \_\ \_\    \ \_\
+  \/_____/   \/_____/      \/_____/   \/_/\/_/   \/_/\/_/     \/_/
+
 `)
 
 	_, err := conn.Write([]byte(display_name + "\n"))
@@ -111,6 +113,8 @@ func initialModel() model {
 		messages:    []string{},
 		viewport:    vp,
 		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		serverStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("3")),
+		aiStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("12")),
 		err:         nil,
 	}
 }
@@ -150,7 +154,19 @@ func playSound(sound string) {
 			streamer.Close()
 		}),
 	))
+}
 
+func extractName(msg string) (t bool, name, text string) {
+	name_index := strings.Index(msg, ":")
+
+	if name_index != -1 {
+		name = msg[:name_index]
+		text = msg[name_index+2:]
+	} else {
+		return false, "", ""
+	}
+
+	return true, name, text
 }
 
 func (m model) Init() tea.Cmd {
@@ -178,7 +194,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.viewport.GotoBottom()
 	case incomingMsg:
-		m.messages = append(m.messages, m.senderStyle.Render(string(msg)))
+		if t, name, text := extractName(string(msg)); t {
+			if name == "AI" {
+				m.messages = append(m.messages, m.aiStyle.Render(name+": ")+text)
+			} else {
+				m.messages = append(m.messages, m.senderStyle.Render(name+": ")+text)
+			}
+		} else {
+			m.messages = append(m.messages, m.serverStyle.Render(string(msg)))
+		}
 		m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
 		m.textarea.Reset()
 		m.viewport.GotoBottom()

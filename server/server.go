@@ -108,7 +108,7 @@ func handleConnections(conn net.Conn) {
 						return true
 					})
 					users := strings.Join(list, ", ")
-					command_return := fmt.Sprintf("Connected Users: %v\n", "["+users+"]")
+					command_return := fmt.Sprintf("Connected Users %v\n", "["+users+"]")
 					broadcastMsg(nil, conns, command_return)
 				}()
 			case "chat":
